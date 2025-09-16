@@ -1,43 +1,76 @@
-/*
-Endryo Henrique de Moraes RA:60002686
-Ryan Stanger RA: 60001050
-Rafael Junkes Alberti RA: 60001175
-João Grigolo RA: 60300661
-*/
+package org.example
 
-import java.sql.Connection
-import java.sql.DriverManager
-import java.sql.PreparedStatement
-import java.sql.ResultSet
+import org.example.Connection.EntidadeJDBC
 
-fun buscarPessoasPorNome(parteNome: String): List<String> {
-    val pessoas = mutableListOf<String>()
+//João Antonio Grigolo de medeiros
+//Rafael Junkes Alberti
+//
 
-    // Corrigido: parâmetros posicionais
-    val url = "jdbc:postgresql://localhost:5433/questao2"
-    val usuario = "postgres"
-    val senha = "postgres"
+// Esta função conecta no banco e faz uma busca por nome (com LIKE %texto%).
+// Ela ignora maiúsculas/minúsculas e retorna todas as pessoas encontradas.
+// Usa PreparedStatement para evitar SQL Injection e monta objetos Pessoa.
+// Depois fecha resultado e conexão para não dar vazamento de recursos.
+// Por fim devolve uma lista com as pessoas que batem com a pesquisa.
 
-    val conexao: Connection = DriverManager.getConnection(url, usuario, senha)
+val conectar = EntidadeJDBC(
+    url = "jdbc:postgresql://localhost:5433/questao2",
+    usuario = "postgres",
+    senha = "postgres"
+)
 
-    val sql = "SELECT nome FROM Pessoa WHERE nome LIKE ?"
-    val stmt: PreparedStatement = conexao.prepareStatement(sql)
-    stmt.setString(1, "%$parteNome%")
+// model simples da tabela Pessoa
+data class Pessoa(
+    val cpf: String,
+    val nome: String,
+    val idade: Int,
+    val telefone: String,
+    val email: String
+)
 
-    val rs: ResultSet = stmt.executeQuery()
-    while (rs.next()) {
-        pessoas.add(rs.getString("nome"))
+
+/**
+ * Busca pessoas cujo nome contenha a string fornecida (case-insensitive).
+ * Ex.: buscarPessoasPorNome("A") retorna todas que tenham 'A' no nome.
+ */
+fun buscarPessoasPorNome(nomeBusca: String): List<Pessoa> {
+    val resultado = mutableListOf<Pessoa>()
+    val sql = "SELECT cpf, nome, idade, telefone, email FROM Pessoa WHERE nome ILIKE ?;"
+
+    val conn = conectar.connectarComBanco()
+    try {
+        conn?.use { c ->
+            c.prepareStatement(sql).use { ps ->
+                ps.setString(1, "%${nomeBusca}%") // wildcard antes/depois
+                val rs = ps.executeQuery()
+                rs.use {
+                    while (it.next()) {
+                        val cpf = it.getString("cpf")
+                        val nome = it.getString("nome")
+                        val idade = it.getInt("idade")
+                        val telefone = it.getString("telefone")
+                        val email = it.getString("email")
+                        resultado.add(Pessoa(cpf, nome, idade, telefone, email))
+                    }
+                }
+            }
+        } ?: run {
+            println("Erro: conexão nula em buscarPessoasPorNome")
+        }
+    } catch (e: Exception) {
+        println("Erro ao buscar pessoas: ${e.message}")
+    } finally {
+        try { conn?.close() } catch (_: Exception) {}
     }
 
-    rs.close()
-    stmt.close()
-    conexao.close()
-
-    return pessoas
+    return resultado
 }
 
+// Exemplo de uso
 fun main() {
-    val resultado = buscarPessoasPorNome("A")
-    println("Pessoas encontradas:")
-    resultado.forEach { println(it) }
+    // busca tudo que tenha 'A' no nome
+    val pessoas = buscarPessoasPorNome("A")
+    println("Encontradas: ${pessoas.size}")
+    pessoas.forEach { p ->
+        println("CPF: ${p.cpf} | Nome: ${p.nome} | Idade: ${p.idade} | Tel: ${p.telefone} | Email: ${p.email}")
+    }
 }

@@ -4,7 +4,8 @@ import org.example.Connection.EntidadeJDBC
 
 //João Antonio Grigolo de medeiros
 //Rafael Junkes Alberti
-//
+//Ryan stanger 60001050
+//Endryo  60002686
 
 // Esta função conecta no banco e faz uma busca por nome (com LIKE %texto%).
 // Ela ignora maiúsculas/minúsculas e retorna todas as pessoas encontradas.
